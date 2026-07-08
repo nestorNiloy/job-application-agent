@@ -1,74 +1,69 @@
-# AI-Driven Job Application & Tracking Agent
+# 🤖 AI-Driven Job Application & Tracking Agent
 
-A backend service that pulls **real, live job listings from the Adzuna Job Search API**,
-runs a keyword-based skill-matching engine to surface relevant roles, and tracks every
-application through a human-in-the-loop state machine — from discovery to offer.
+A robust FastAPI backend service that pulls real-time job listings from the **Adzuna Job Search API**, processes them via a rule-based skill-overlap analysis engine, and tracks individual application states through a structured pipeline. Featuring a lightweight, responsive vanilla JS Kanban board frontend.
 
-A lightweight Kanban board frontend visualizes the full pipeline in real time.
-
-![Kanban Board Screenshot](kanban.gif)
+<p align="center">
+  <img src="kanban.gif" alt="Kanban Board Demo" max-width="500px" width="100%" />
+</p>
 
 ---
 
-## What it does
+## ✨ Key Features
 
-1. **Scrape** — POST a keyword + location query; the backend fetches real listings from
-   Adzuna and stores them, skipping duplicates it has already seen.
-2. **Review** — Move interesting listings to *Pending Review* before committing to apply.
-3. **Tailor** — Run a rule-based skill-overlap analysis against your resume keywords;
-   the engine highlights which of your skills appear in the job description and suggests
-   an application angle.
-4. **Track** — Advance each application through `SCRAPED → PENDING_REVIEW → APPLIED →
-   INTERVIEWING → OFFERED / REJECTED` with a single button click.
+* **Automated Ingestion** — Fetch live job data using keyword and location targets via an asynchronous HTTP client, filtering out pre-existing duplicates automatically.
+* **Granular Review Pipeline** — Stage raw scraped listings in a `PENDING_REVIEW` phase to separate interesting leads from background noise.
+* **Skill Tailoring Engine** — Evaluate job descriptions against specified resume target keywords to map skills and extract strategic talking points.
+* **State Machine Tracking** — Step applications seamlessly across states:  
+  `SCRAPED` ➔ `PENDING_REVIEW` ➔ `APPLIED` ➔ `INTERVIEWING` ➔ `OFFERED` / `REJECTED`
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
-Adzuna Job Search API
-│
-▼  (httpx async HTTP client)
-┌─────────────────────────────────────┐
-│         FastAPI Backend             │
-│                                     │
-│  Router Layer       main.py         │
-│       ▼                             │
-│  Service Layer      services.py     │  ← Adzuna scraper + tailoring engine
-│       ▼                             │
-│  Repository Layer   crud.py         │
-└────────────────┬────────────────────┘
-▼
-SQLite  (jobs_agent.db)
-Static frontend served at /ui/
+```text
+       ┌────────────────────────────────────────────────────────┐
+       │               Adzuna Job Search API                    │
+       └───────────────────────────┬────────────────────────────┘
+                                   │
+                                   │ (httpx async client)
+                                   ▼
+       ┌────────────────────────────────────────────────────────┐
+       │                   FastAPI Backend                      │
+       │                                                        │
+       │   Router Layer      [main.py]                          │
+       │        ▼                                               │
+       │   Service Layer     [services.py]  🠔 Scraper & Engine  │
+       │        ▼                                               │
+       │   Repository Layer  [crud.py]                          │
+       └───────────────────────────┬────────────────────────────┘
+                                   │
+                                   ▼
+       ┌────────────────────────────────────────────────────────┐
+       │            SQLite Database (jobs_agent.db)             │
+       │           & Static UI Served at /ui/                   │
+       └────────────────────────────────────────────────────────┘
 
-**Layer breakdown**
 
-| File | Responsibility |
-|---|---|
-| `app/models.py` | SQLAlchemy 2.0 async models, `JobStatus` enum, engine setup |
-| `app/schemas.py` | Pydantic v2 request / response validation |
-| `app/crud.py` | Repository layer — all database access lives here |
-| `app/services.py` | Adzuna API client, deduplication logic, tailoring engine |
-| `app/main.py` | FastAPI routes, lifespan startup, global 404 handler |
-| `static/index.html` | Kanban board — vanilla JS, no build step |
+📂 Layer Breakdown
 
----
+File Component,Domain Responsibility
+app/models.py,"SQLAlchemy 2.0 async models, JobStatus enums, and database engine core."
+app/schemas.py,Pydantic v2 request/response strong type validation schemas.
+app/crud.py,Repository layer decoupling raw database mutations and queries.
+app/services.py,"Adzuna API communications client, data deduplication, and tailoring algorithms."
+app/main.py,"REST API routing declarations, lifecycle execution hooks, and global handlers."
+static/index.html,Client-side Kanban UI engine written in buildless Vanilla ES6+ JavaScript.
 
-## API Endpoints
+⚙️ Core API Endpoints
 
-| Method | Path | Body | Description |
-|---|---|---|---|
-| `POST` | `/api/jobs/scrape` | `{keywords, location}` | Queues a real Adzuna search (202 Accepted) |
-| `GET` | `/api/jobs` | — | All jobs, newest first — feeds the Kanban board |
-| `GET` | `/api/jobs/pending` | — | Jobs in `PENDING_REVIEW` only |
-| `PUT` | `/api/jobs/{id}/apply` | — | Transitions a job to `APPLIED`, stamps `applied_date` |
-| `PUT` | `/api/jobs/{id}/status` | `{new_status}` | Manual status update |
-| `PUT` | `/api/jobs/{id}/tailor` | — | Runs the tailoring engine, saves the notes |
-| `GET` | `/api/jobs/metrics` | — | Counts grouped by status |
-
-Interactive API docs are available at `/docs` (Swagger UI) and `/redoc`.
-
----
+Method,Endpoint,Payload / Parameters,Functionality
+POST,/api/jobs/scrape,"{ ""keywords"": ""..."", ""location"": ""..."" }",Triggers background Adzuna crawling (Returns 202 Accepted)
+GET,/api/jobs,None,Queries comprehensive collection sorted chronologically for the Kanban engine
+GET,/api/jobs/pending,None,Exposes targeted isolation of listings flagged inside PENDING_REVIEW
+PUT,/api/jobs/{id}/apply,None,Advances workflow status to APPLIED and commits an applied_date stamp
+PUT,/api/jobs/{id}/status,"{ ""new_status"": ""..."" }",Explicit administrative route allowing manual pipeline manipulation
+PUT,/api/jobs/{id}/tailor,None,Runs the processing parser engine against target resume goals
+GET,/api/jobs/metrics,None,Computes aggregation counters grouped natively by active state keys
 
 ## Running locally
 
@@ -100,3 +95,4 @@ Register for free credentials at [developer.adzuna.com](https://developer.adzuna
 ## Tech stack
 
 Python 3.11 · FastAPI · SQLAlchemy 2.0 (async) · SQLite · aiosqlite · Pydantic v2 · httpx · Uvicorn
+
