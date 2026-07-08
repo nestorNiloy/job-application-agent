@@ -46,7 +46,7 @@ A robust FastAPI backend service that pulls real-time job listings from the **Ad
 
  
 
- 📂 Layer breakdown
+ **Layer breakdown**
 
 | File | Responsibility |
 |---|---|
@@ -59,7 +59,7 @@ A robust FastAPI backend service that pulls real-time job listings from the **Ad
 
 ---
 
-⚙️ API Endpoints
+## API Endpoints
 
 | Method | Path | Body | Description |
 |---|---|---|---|
@@ -104,5 +104,4 @@ Register for free credentials at [developer.adzuna.com](https://developer.adzuna
 
 ## Tech stack
 
-Python 3.11 · FastAPI · SQLAlchemy 2.0 (async) · SQLite · aiosqlite · Pydantic v2 · httpx · UvicornQLite · aiosqlite · Pydantic v2 · httpx · Uvicorn
-
+Python 3.11 · FastAPI · SQLAlchemy 2.0 (async) · SQLite · aiosqlite · Pydantic v2 · httpx · Uvicorn
