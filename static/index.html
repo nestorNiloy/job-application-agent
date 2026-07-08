@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Job Application Agent — Pipeline Board</title>
+<style>
+  :root {
+    --bg: #f6f6f4;
+    --panel: #ffffff;
+    --ink: #1f2430;
+    --muted: #6b7280;
+    --line: #e4e4e0;
+    --c-scraped: #64748b;
+    --c-pending: #c98a2e;
+    --c-applied: #2e8b74;
+    --c-interviewing: #5b5fef;
+    --c-rejected: #b5473b;
+    --c-offered: #3f9142;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  header {
+    padding: 28px 32px 18px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+
+  header h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .pipeline-track {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pipeline-track .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pipeline-track .arrow { color: var(--line); }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    padding: 16px 32px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .toolbar input {
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 13px;
+    min-width: 180px;
+  }
+
+  .toolbar button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: var(--ink);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .toolbar button:hover { opacity: 0.85; }
+  .toolbar button.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .toolbar .status-msg {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    padding: 20px 32px 40px;
+    align-items: start;
+  }
+
+  .column {
+    background: var(--panel);
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    min-height: 200px;
+    overflow: hidden;
+  }
+
+  .column-head {
+    padding: 12px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .column[data-status="SCRAPED"] .column-head { background: var(--c-scraped); }
+  .column[data-status="PENDING_REVIEW"] .column-head { background: var(--c-pending); }
+  .column[data-status="APPLIED"] .column-head { background: var(--c-applied); }
+  .column[data-status="INTERVIEWING"] .column-head { background: var(--c-interviewing); }
+
+  .column-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    background: #fbfbfa;
+  }
+
+  .card .title { font-weight: 700; margin-bottom: 2px; }
+  .card .company { color: var(--muted); margin-bottom: 6px; }
+  .card .board-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-bottom: 6px;
+  }
+  .card .notes {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 6px 0;
+    border-top: 1px dashed var(--line);
+    padding-top: 6px;
+  }
+  .card a.source-link {
+    font-size: 12px;
+    color: var(--c-interviewing);
+    text-decoration: none;
+  }
+  .card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .card-actions button {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    background: white;
+    cursor: pointer;
+  }
+  .card-actions button:hover { background: var(--bg); }
+  .card-actions button.reject { color: var(--c-rejected); border-color: var(--c-rejected); }
+  .card-actions button.offer { color: var(--c-offered); border-color: var(--c-offered); }
+
+  .empty-state {
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  @media (max-width: 900px) {
+    .board { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Job Application Agent</h1>
+  <p>Live pipeline sourced from the Adzuna Job Search API — track every listing through review to offer.</p>
+  <div class="pipeline-track">
+    <span class="dot" style="background:var(--c-scraped)"></span><span>Scraped</span>
+    <span class="arrow">→</span>
+    <span class="dot" style="background:var(--c-pending)"></span><span>Pending Review</span>
+    <span class="arrow">→</span>
+    <span class="dot" style="background:var(--c-applied)"></span><span>Applied</span>
+    <span class="arrow">→</span>
+    <span class="dot" style="background:var(--c-interviewing)"></span><span>Interviewing</span>
+  </div>
+</header>
+
+<div class="toolbar">
+  <input id="keywords" type="text" placeholder="Keywords, e.g. Data Analyst Werkstudent" />
+  <input id="location" type="text" placeholder="Location, e.g. Hamburg" />
+  <button id="scrapeBtn">Scrape new jobs</button>
+  <button id="refreshBtn" class="ghost">Refresh board</button>
+  <span class="status-msg" id="statusMsg"></span>
+</div>
+
+<div class="board">
+  <div class="column" data-status="SCRAPED">
+    <div class="column-head"><span>Scraped</span><span id="count-SCRAPED">0</span></div>
+    <div class="column-body" id="col-SCRAPED"></div>
+  </div>
+  <div class="column" data-status="PENDING_REVIEW">
+    <div class="column-head"><span>Pending Review</span><span id="count-PENDING_REVIEW">0</span></div>
+    <div class="column-body" id="col-PENDING_REVIEW"></div>
+  </div>
+  <div class="column" data-status="APPLIED">
+    <div class="column-head"><span>Applied</span><span id="count-APPLIED">0</span></div>
+    <div class="column-body" id="col-APPLIED"></div>
+  </div>
+  <div class="column" data-status="INTERVIEWING">
+    <div class="column-head"><span>Interviewing</span><span id="count-INTERVIEWING">0</span></div>
+    <div class="column-body" id="col-INTERVIEWING"></div>
+  </div>
+</div>
+
+<script>
+const API = "/api/jobs";
+const COLUMNS = ["SCRAPED", "PENDING_REVIEW", "APPLIED", "INTERVIEWING"];
+
+function setStatusMsg(text) {
+  document.getElementById("statusMsg").textContent = text;
+}
+
+function renderCard(job) {
+  const el = document.createElement("div");
+  el.className = "card";
+
+  const notesHtml = job.ai_tailored_notes
+    ? `<div class="notes">${escapeHtml(job.ai_tailored_notes)}</div>`
+    : "";
+
+  const linkHtml = job.source_url
+    ? `<a class="source-link" href="${job.source_url}" target="_blank" rel="noopener">View original listing →</a>`
+    : "";
+
+  let actionsHtml = "";
+  if (job.status === "SCRAPED") {
+    actionsHtml = `<button data-action="stage" data-id="${job.id}">Stage for review</button>
+                   <button data-action="tailor" data-id="${job.id}">Run AI tailoring</button>`;
+  } else if (job.status === "PENDING_REVIEW") {
+    actionsHtml = `<button data-action="apply" data-id="${job.id}">Apply</button>
+                   <button data-action="tailor" data-id="${job.id}">Run AI tailoring</button>
+                   <button class="reject" data-action="reject" data-id="${job.id}">Reject</button>`;
+  } else if (job.status === "APPLIED") {
+    actionsHtml = `<button data-action="interview" data-id="${job.id}">Mark interviewing</button>
+                   <button class="reject" data-action="reject" data-id="${job.id}">Reject</button>`;
+  } else if (job.status === "INTERVIEWING") {
+    actionsHtml = `<button class="offer" data-action="offer" data-id="${job.id}">Mark offered</button>
+                   <button class="reject" data-action="reject" data-id="${job.id}">Reject</button>`;
+  }
+
+  el.innerHTML = `
+    <span class="board-tag">${escapeHtml(job.job_board)}</span>
+    <div class="title">${escapeHtml(job.position_title)}</div>
+    <div class="company">${escapeHtml(job.company_name)}</div>
+    ${notesHtml}
+    ${linkHtml}
+    <div class="card-actions">${actionsHtml}</div>
+  `;
+  return el;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
+async function loadBoard() {
+  setStatusMsg("Loading…");
+  try {
+    const res = await fetch(API);
+    if (!res.ok) throw new Error("Failed to load jobs");
+    const jobs = await res.json();
+
+    COLUMNS.forEach((status) => {
+      const container = document.getElementById(`col-${status}`);
+      container.innerHTML = "";
+      const jobsInColumn = jobs.filter((j) => j.status === status);
+      document.getElementById(`count-${status}`).textContent = jobsInColumn.length;
+
+      if (jobsInColumn.length === 0) {
+        container.innerHTML = `<div class="empty-state">No jobs here yet</div>`;
+        return;
+      }
+      jobsInColumn.forEach((job) => container.appendChild(renderCard(job)));
+    });
+    setStatusMsg(`Updated ${new Date().toLocaleTimeString()}`);
+  } catch (err) {
+    setStatusMsg("Could not load board — is the API running?");
+    console.error(err);
+  }
+}
+
+async function updateStatus(id, newStatus) {
+  await fetch(`${API}/${id}/status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ new_status: newStatus }),
+  });
+  loadBoard();
+}
+
+document.querySelector(".board").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+
+  if (action === "stage") return updateStatus(id, "PENDING_REVIEW");
+  if (action === "reject") return updateStatus(id, "REJECTED");
+  if (action === "interview") return updateStatus(id, "INTERVIEWING");
+  if (action === "offer") return updateStatus(id, "OFFERED");
+  if (action === "apply") {
+    await fetch(`${API}/${id}/apply`, { method: "PUT" });
+    return loadBoard();
+  }
+  if (action === "tailor") {
+    setStatusMsg("Running tailoring engine…");
+    await fetch(`${API}/${id}/tailor`, { method: "PUT" });
+    return loadBoard();
+  }
+});
+
+document.getElementById("scrapeBtn").addEventListener("click", async () => {
+  const keywords = document.getElementById("keywords").value.trim();
+  const location = document.getElementById("location").value.trim();
+  if (!keywords || !location) {
+    setStatusMsg("Enter both keywords and a location first.");
+    return;
+  }
+  setStatusMsg("Scrape queued — new listings will appear in a few seconds…");
+  await fetch(`${API}/scrape`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ keywords, location }),
+  });
+  setTimeout(loadBoard, 2500);
+});
+
+document.getElementById("refreshBtn").addEventListener("click", loadBoard);
+
+loadBoard();
+setInterval(loadBoard, 15000);
+</script>
+
+</body>
+</html>
